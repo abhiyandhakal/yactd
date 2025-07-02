@@ -7,5 +7,5 @@ tmp_dir = "bin"
 
 [build]
 cmd = "go build -o ./bin/yactd ./cmd/"
-bin = "bin/main"
+bin = "bin/yactd"
 log = "air.log"
