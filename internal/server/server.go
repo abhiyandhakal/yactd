@@ -2,7 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 	"yactd/internal/handler"
 	"yactd/internal/protocol"
 )
@@ -17,12 +21,29 @@ func New(socketPath string) *Server {
 
 func (s *Server) Start() {
 	listener, err := net.Listen("unix", s.socketPath)
+
 	if err != nil {
 		panic(err)
 	}
-	defer listener.Close()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	done := make(chan bool, 1)
+
+	go func() {
+		sig := <-sigs
+		fmt.Println(sig)
+		done <- true
+		listener.Close()
+	}()
 	for {
 		conn, err := listener.Accept()
+		select {
+		case <-done:
+			fmt.Println("Yact Daemon sutting down...")
+			return
+		default:
+		}
 		if err != nil {
 			continue
 		}
