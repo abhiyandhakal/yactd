@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"yactd/internal/handler"
 	"yactd/internal/protocol"
@@ -53,7 +54,45 @@ func (s *Server) Start() {
 
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
-	var req protocol.Request
+
+	// Read the incoming data
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		res := protocol.Response{
+			Status: "error",
+			Error:  fmt.Sprintf("error reading request: %v", err),
+		}
+		json.NewEncoder(conn).Encode(res)
+		return
+	}
+
+	// Parse the command and arguments
+	cmd := string(buf[:n])
+	parts := strings.Fields(cmd)
+	if len(parts) < 1 {
+		res := protocol.Response{
+			Status: "error",
+			Error:  "no command provided",
+		}
+		json.NewEncoder(conn).Encode(res)
+		return
+	}
+
+	action := parts[0]
+	payload := make(map[string]string)
+
+	// For pull command, expect format: pull <image>
+	if action == "pull" && len(parts) > 1 {
+		payload["image"] = parts[1]
+	}
+
+	// Create and dispatch the request
+	req := protocol.Request{
+		Action:  action,
+		Payload: payload,
+	}
+
 	res := handler.Dispatch(req)
 	json.NewEncoder(conn).Encode(res)
 }

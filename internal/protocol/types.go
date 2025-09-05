@@ -1,10 +1,8 @@
 package protocol
 
 type Request struct {
-	Action string   `json:"action"`
-	Image  string   `json:"image"`
-	Cmd    []string `json:"cmd"`
-	ID     string   `json:"id,omitempty"`
+	Action  string            `json:"action"`  // The command action (e.g., "pull", "run", "list")
+	Payload map[string]string `json:"payload"` // Flexible key-value pairs for command arguments
 }
 
 type Response struct {

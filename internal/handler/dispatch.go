@@ -1,6 +1,10 @@
 package handler
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"yactd/internal/protocol"
 )
 
@@ -95,9 +99,43 @@ func ImagesHandler(req protocol.Request) protocol.Response {
 
 // PullHandler handles the pulling of an image from a registry.
 func PullHandler(req protocol.Request) protocol.Response {
-	// TODO: implement pull handler
-	// This handler should pull an image from a registry.
-	return protocol.Response{Status: "error", Error: "not implemented"}
+	imageName, ok := req.Payload["image"]
+	if !ok || imageName == "" {
+		return protocol.Response{Status: "error", Error: "image name is required in payload"}
+	}
+
+	srcPath := filepath.Join("/root", imageName)
+	destDir := "/var/lib/yact/images"
+	destPath := filepath.Join(destDir, imageName)
+
+	// Check if source exists and is a directory
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return protocol.Response{Status: "error", Error: fmt.Sprintf("source directory not found: %v", err)}
+	}
+	if !srcInfo.IsDir() {
+		return protocol.Response{Status: "error", Error: "source is not a directory"}
+	}
+
+	// Create parent destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return protocol.Response{Status: "error", Error: fmt.Sprintf("failed to create destination directory: %v", err)}
+	}
+
+	// Execute cp command to copy the directory
+	cmd := exec.Command("cp", "-r", "-f", srcPath, destDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return protocol.Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to copy directory: %v\nOutput: %s", err, string(output)),
+		}
+	}
+
+	return protocol.Response{
+		Status: "success",
+		Output: fmt.Sprintf("Successfully pulled image %s to %s", imageName, destPath),
+	}
 }
 
 // PushHandler handles the pushing of an image to a registry.
